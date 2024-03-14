@@ -1,0 +1,20 @@
+[placeholders]
+id = {prompt = "ID", type = "string"}
+config = { prompt = "config",  default = true, type = "bool" }
+translate = { prompt = "translate", default = true, type = "bool" }
+example = { prompt = "example", default = true, type = "bool" }
+
+
+[hooks]
+post = ["post-script.rhai"]
+
+
+[conditional."!config"]
+ignore = [ "src/config.rs" ]
+
+[conditional."!translate"]
+ignore = [
+    "src/localize.rs",
+    "i18n.toml",
+    "i18n",
+]
