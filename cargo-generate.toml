@@ -1,8 +1,11 @@
 [placeholders]
 id = {prompt = "ID", type = "string"}
+icon = {prompt = "icon", type = "string"}
 config = { prompt = "config",  default = true, type = "bool" }
 translate = { prompt = "translate", default = true, type = "bool" }
+animation = { prompt = "animation", default = true, type = "bool" }
 example = { prompt = "example", default = true, type = "bool" }
+
 
 
 [hooks]

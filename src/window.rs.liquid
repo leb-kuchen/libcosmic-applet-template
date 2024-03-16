@@ -12,9 +12,19 @@ use cosmic::cosmic_config;
 use crate::config::{Config, CONFIG_VERSION};
 {% endif %}
 {% if translate %} use crate::fl; {% endif %}
+{% if animation %} 
+use cosmic_time::Timeline;
+{% endif %}
+{% if example %}
+use cosmic::iced::Length;
+ use cosmic::applet::padded_control;
+ {% if animation %}
+    use cosmic_time::anim;
+ {% endif %}
+{% endif %}
 pub const ID: &str = "{{id}}";
+const ICON: &str = "{{icon}}";
 
-#[derive(Default)]
 pub struct Window {
     core: Core,
     popup: Option<Id>,
@@ -24,6 +34,12 @@ pub struct Window {
     #[allow(dead_code)]
     config_handler: Option<cosmic_config::Config>,
 {% endif %}
+{% if animation %} 
+    timeline: Timeline, 
+    {% if example %}
+    example_row_anim: cosmic_time::id::Toggler,
+    {% endif %}
+{% endif %}
 }
 
 #[derive(Clone, Debug)]
@@ -31,7 +47,11 @@ pub enum Message {
 {% if config %} Config(Config), {% endif %}
     TogglePopup,
     PopupClosed(Id),
-{% if example %} ToggleExampleRow(bool), {% endif %}
+{% if example %} ToggleExampleRow(
+    {% if animation %} cosmic_time::chain::Toggler,{% endif %}
+    bool
+), {% endif %}
+{% if animation %} Frame(std::time::Instant),{% endif %}
 }
 
 {% if config %}
@@ -68,6 +88,12 @@ impl cosmic::Application for Window {
 {% endif %}
             popup: None,
     {% if example %} example_row: false, {% endif %}
+    {% if animation %} 
+    timeline: Timeline::new(),
+        {% if example %}
+        example_row_anim: cosmic_time::id::Toggler::unique(),
+        {% endif %}
+    {% endif %}
         };
         (window, Command::none())
     }
@@ -110,6 +136,9 @@ impl cosmic::Application for Window {
                 }
             }
 {% endif %}
+{% if animation %}
+            Message::Frame(now) => self.timeline.now(now),
+{%  endif  %}
             Message::TogglePopup => {
                 return if let Some(p) = self.popup.take() {
                     destroy_popup(p)
@@ -134,7 +163,10 @@ impl cosmic::Application for Window {
                 }
             }
 {% if example %}
-            Message::ToggleExampleRow(toggled) => self.example_row = toggled,
+            Message::ToggleExampleRow({% if animation %}chain,{% endif %}toggled) => {
+                {% if animation %} self.timeline.set_chain(chain).start();  {% endif %}
+                self.example_row = toggled;
+            }
 {% endif %}
         }
         Command::none()
@@ -143,30 +175,45 @@ impl cosmic::Application for Window {
     fn view(&self) -> Element<Self::Message> {
         self.core
             .applet
-            .icon_button("display-symbolic")
+            .icon_button(ICON)
             .on_press(Message::TogglePopup)
             .into()
     }
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
-        let content_list = widget::list_column()
-            .padding(5)
-            .spacing(0)
-{% if example %}
-            .add(widget::settings::item(
-{% if translate %} fl!("hello-world") {% else %} "Hello 世界" {% endif %},
-                widget::toggler(None, self.example_row, |value| {
-                    Message::ToggleExampleRow(value)
-                }),
-            ))
-{% endif %};
+        let content_list = widget::column::with_children(vec![
+            {% if example %}
+            padded_control(
+            {% if animation %}
+                 anim!(
+                    self.example_row_anim,
+                    &self.timeline,
+                    {% if translate %} fl!("hello-world") {% else %} "Hello 世界" {% endif %},
+                    self.example_row,
+                    |chain, enable| { Message::ToggleExampleRow(chain, enable) },
+                )
+                 .text_size(14)
+                .width(Length::Fill)
 
+            {% else %}
+                widget::row::with_children(vec![
+                    widget::text({% if translate %} fl!("hello-world") {% else %} "Hello 世界" {% endif %})
+                    .size(14)
+                    .width(Length::Fill)
+                    .into(),
+                    widget::toggler(None, self.example_row, Message::ToggleExampleRow).into(),
+                ])
+            {% endif %}
+            )
+            .into()
+            {% endif %}
+        ]);
         self.core.applet.popup_container(content_list).into()
     }
     fn subscription(&self) -> Subscription<Self::Message> {
 {% if config %}        
         struct ConfigSubscription;
-        return cosmic_config::config_subscription(
+        let config = cosmic_config::config_subscription(
             std::any::TypeId::of::<ConfigSubscription>(),
             Self::APP_ID.into(),
             CONFIG_VERSION,
@@ -179,10 +226,18 @@ impl cosmic::Application for Window {
                 );
             }
             Message::Config(update.config)
-        });
-{% else %}    
-         Subscription::none()
+        });        
 {% endif %}
+{% if animation %}
+         let timeline = self
+            .timeline
+            .as_subscription()
+            .map(|(_, now)| Message::Frame(now));
+{% endif %}
+        Subscription::batch(vec![
+            {% if config %} config, {% endif %}
+            {% if animation %} timeline, {% endif %}
+        ])
     }
 
     fn style(&self) -> Option<<Theme as application::StyleSheet>::Style> {
