@@ -6,7 +6,7 @@ pub const CONFIG_VERSION: u64 = 1;
 
 #[derive(Clone, CosmicConfigEntry, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Config {
-    {% if example %}  example_row,  {% endif %}
+    {% if example %}  example_row: bool,  {% endif %}
 }
 
 impl Default for Config {
