@@ -7,3 +7,10 @@ cd cosmic-applet-example
 cargo b -r
 sudo just install
 ```
+# Formatting 
+This template doesn't put any emphasis on formatting, as code of any formatting works with rust.
+Recommended formatting:
+```sh
+sed -i '/^$/d' src/*.rs # remove empty lines
+cargo fmt
+```
